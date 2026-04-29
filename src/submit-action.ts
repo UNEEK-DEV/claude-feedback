@@ -33,9 +33,16 @@ export interface SubmitError {
  *   - CLAUDE_FEEDBACK_ENABLED    master toggle ("1" | "true" to enable)
  *   - GITHUB_REPO                "owner/name" format
  *   - GITHUB_FEEDBACK_TOKEN      fine-grained PAT w/ issues:write
- *   - CLAUDE_FEEDBACK_LABELS     optional CSV, defaults to "dev-feedback,claude-task"
- *   - BLOB_READ_WRITE_TOKEN      optional — if set + @vercel/blob installed,
- *                                screenshot is uploaded and embedded
+ *   - CLAUDE_FEEDBACK_LABELS         optional CSV, defaults to "dev-feedback,claude-task"
+ *   - BLOB_PUBLIC_READ_WRITE_TOKEN   optional — preferred. Token for a
+ *                                    PUBLIC Vercel Blob store. Required
+ *                                    because GitHub fetches issue
+ *                                    images anonymously.
+ *   - BLOB_READ_WRITE_TOKEN          optional — fallback for single-store
+ *                                    apps. The store must be public, or
+ *                                    the upload will fail with
+ *                                    "Cannot use public access on a
+ *                                    private store".
  */
 export async function submitFeedback(
   payload: FeedbackPayload,
@@ -116,12 +123,20 @@ function parseLabels(raw: string | undefined): string[] {
 }
 
 /**
- * If @vercel/blob is installed AND BLOB_READ_WRITE_TOKEN is set, upload
- * the screenshot and return its public URL. Otherwise return null — the
- * issue will simply render without the image.
+ * Upload the screenshot to a PUBLIC Vercel Blob store and return its URL.
+ *
+ * Prefers BLOB_PUBLIC_READ_WRITE_TOKEN (apps that split private/public
+ * stores) and falls back to BLOB_READ_WRITE_TOKEN for single-store apps.
+ * The resolved store MUST be public — GitHub fetches issue-body images
+ * anonymously, so a private store will reject `access: "public"`.
+ *
+ * Returns null if neither token is set or @vercel/blob isn't installed —
+ * the issue will simply render without the image.
  */
 async function maybeUploadScreenshot(base64: string): Promise<string | null> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const token =
+    process.env.BLOB_PUBLIC_READ_WRITE_TOKEN ??
+    process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return null;
 
   let blobModule: typeof import("@vercel/blob") | null = null;
@@ -129,7 +144,7 @@ async function maybeUploadScreenshot(base64: string): Promise<string | null> {
     blobModule = await import("@vercel/blob");
   } catch {
     console.warn(
-      "[claude-feedback] BLOB_READ_WRITE_TOKEN is set but @vercel/blob is not installed — skipping screenshot upload. `npm i @vercel/blob` to enable.",
+      "[claude-feedback] a Blob token is set but @vercel/blob is not installed — skipping screenshot upload. `npm i @vercel/blob` to enable.",
     );
     return null;
   }

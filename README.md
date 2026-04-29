@@ -59,8 +59,12 @@ GITHUB_FEEDBACK_TOKEN=github_pat_...            # fine-grained PAT w/ Issues:RW
 CLAUDE_FEEDBACK_LABELS=dev-feedback,claude-task
 
 # Optional — embed annotated screenshots in issues.
-# Requires @vercel/blob installed.
-BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+# Requires @vercel/blob installed. The resolved store MUST be PUBLIC —
+# GitHub fetches issue-body images anonymously. Prefer the dedicated
+# public-store token; fall back to BLOB_READ_WRITE_TOKEN only when the
+# app uses a single (public) store.
+BLOB_PUBLIC_READ_WRITE_TOKEN=vercel_blob_rw_...   # preferred
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...          # fallback
 
 # ─── Inbox target (tether) ────────────────────────────────────────
 # Absolute path on the machine running the Next.js server. The widget
